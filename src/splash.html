@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 100vw; height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #fafaf8;
+    font-family: Georgia, serif;
+    overflow: hidden;
+    -webkit-app-region: drag;
+  }
+
+  .logo-container {
+    animation: float 2s ease-in-out infinite alternate;
+  }
+
+  .logo-container img {
+    width: 160px; height: 160px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.12));
+  }
+
+  .wordmark {
+    margin-top: 20px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #2c2a25;
+    letter-spacing: -0.5px;
+    animation: fadeIn 0.8s ease-out 0.2s both;
+  }
+
+  .subtitle {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #9d998f;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    animation: fadeIn 0.8s ease-out 0.4s both;
+  }
+
+  .loader {
+    margin-top: 32px;
+    display: flex; gap: 6px;
+    animation: fadeIn 0.8s ease-out 0.6s both;
+  }
+
+  .loader span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #c45d35;
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .loader span:nth-child(2) { animation-delay: 0.15s; }
+  .loader span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes float {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-8px); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+  <div class="logo-container">
+    <img id="splash-icon" alt="MarkMoose" />
+  </div>
+  <div class="wordmark">MarkMoose</div>
+  <div class="subtitle">Markdown Editor</div>
+  <div class="loader">
+    <span></span><span></span><span></span>
+  </div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const iconPath = params.get('icon');
+    if (iconPath) {
+      document.getElementById('splash-icon').src = 'file:///' + decodeURIComponent(iconPath).replace(/\\/g, '/');
+    }
+  </script>
+</body>
+</html>
