@@ -5,3 +5,5 @@ build/appx/
 *.log
 .DS_Store
 Thumbs.db
+.claude/
+.vscode/
