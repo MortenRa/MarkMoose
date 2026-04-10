@@ -111,16 +111,29 @@ function parseMd(md) {
     return `<pre class="code-block" data-lang="${lang}"><code class="hljs">${highlighted}</code></pre>`;
   });
 
-  html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  // inline code — escape HTML inside backticks
+  html = html.replace(/`([^`]+)`/g, (_, code) => {
+    const escaped = code.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<code class="inline-code">${escaped}</code>`;
+  });
+
+  // escape raw <tag> in text that aren't inside code blocks (already handled above)
+  // this prevents user-typed XML tags like <summary> from being eaten by the browser
+  html = html.replace(/<(?!\/?(?:code|pre|div|span|a|img|ul|ol|li|table|thead|tbody|tr|th|td|hr|h[1-6]|blockquote|section|sup|em|strong|del|br|p|b|i|s)\b)([^>]+)>/g, "&lt;$1&gt;");
+
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%;border-radius:6px;margin:12px 0" />');
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
 
-  html = html.replace(/^######\s+(.+)$/gm, '<h6 id="$1">$1</h6>');
-  html = html.replace(/^#####\s+(.+)$/gm, '<h5 id="$1">$1</h5>');
-  html = html.replace(/^####\s+(.+)$/gm, '<h4 id="$1">$1</h4>');
-  html = html.replace(/^###\s+(.+)$/gm, '<h3 id="$1">$1</h3>');
-  html = html.replace(/^##\s+(.+)$/gm, '<h2 id="$1">$1</h2>');
-  html = html.replace(/^#\s+(.+)$/gm, '<h1 id="$1">$1</h1>');
+  const makeHeading = (tag, text) => {
+    const cleanId = text.replace(/<[^>]+>/g, "").replace(/&[^;]+;/g, "").replace(/[^\w\s-]/g, "").trim();
+    return `<${tag} id="${cleanId}">${text}</${tag}>`;
+  };
+  html = html.replace(/^######\s+(.+)$/gm, (_, t) => makeHeading("h6", t));
+  html = html.replace(/^#####\s+(.+)$/gm, (_, t) => makeHeading("h5", t));
+  html = html.replace(/^####\s+(.+)$/gm, (_, t) => makeHeading("h4", t));
+  html = html.replace(/^###\s+(.+)$/gm, (_, t) => makeHeading("h3", t));
+  html = html.replace(/^##\s+(.+)$/gm, (_, t) => makeHeading("h2", t));
+  html = html.replace(/^#\s+(.+)$/gm, (_, t) => makeHeading("h1", t));
 
   html = html.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '<hr class="md-hr" />');
 
@@ -343,6 +356,7 @@ export default function MarkdownViewer() {
   const draggingRef = useRef(false);
   const mainRef = useRef(null);
   const tabsRef = useRef(tabs);
+  const syncingScroll = useRef(false);
 
   // keep ref in sync for async callbacks
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
@@ -439,7 +453,9 @@ export default function MarkdownViewer() {
 
   const scrollTo = useCallback((text) => {
     if (!previewRef.current) return;
-    const el = previewRef.current.querySelector(`[id="${CSS.escape(text)}"]`);
+    // match the same ID cleaning logic used in makeHeading
+    const cleanId = text.replace(/[^\w\s-]/g, "").trim();
+    const el = previewRef.current.querySelector(`[id="${CSS.escape(cleanId)}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
@@ -618,6 +634,29 @@ export default function MarkdownViewer() {
     setDirty(true);
   }, []);
 
+  // synchronized scrolling between editor and preview
+  const onEditorScroll = useCallback(() => {
+    if (syncingScroll.current || mode !== "split") return;
+    const editor = editorRef.current;
+    const preview = previewRef.current;
+    if (!editor || !preview) return;
+    syncingScroll.current = true;
+    const pct = editor.scrollTop / (editor.scrollHeight - editor.clientHeight || 1);
+    preview.scrollTop = pct * (preview.scrollHeight - preview.clientHeight);
+    requestAnimationFrame(() => { syncingScroll.current = false; });
+  }, [mode]);
+
+  const onPreviewScroll = useCallback(() => {
+    if (syncingScroll.current || mode !== "split") return;
+    const editor = editorRef.current;
+    const preview = previewRef.current;
+    if (!editor || !preview) return;
+    syncingScroll.current = true;
+    const pct = preview.scrollTop / (preview.scrollHeight - preview.clientHeight || 1);
+    editor.scrollTop = pct * (editor.scrollHeight - editor.clientHeight);
+    requestAnimationFrame(() => { syncingScroll.current = false; });
+  }, [mode]);
+
   // split pane drag
   const onSplitMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -749,7 +788,7 @@ export default function MarkdownViewer() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="10" y2="18"/></svg>
           </button>
           <div style={s.titleArea}>
-            <span style={s.appTitle}>MarkMoose</span>
+            <span style={s.appTitle}>MarkMoose Markdown Editor</span>
           </div>
         </div>
         <div style={s.toolbarCenter}>
@@ -852,6 +891,7 @@ export default function MarkdownViewer() {
               value={md}
               onChange={handleChange}
               onKeyDown={handleEditorKeyDown}
+              onScroll={onEditorScroll}
               style={s.editor}
               spellCheck={false}
               placeholder="Type or paste markdown here..."
@@ -869,7 +909,7 @@ export default function MarkdownViewer() {
           <div style={{
             overflow: "auto", minWidth: 0, cursor: "default",
             ...(mode === "split" ? { width: `${100 - splitPos}%` } : { flex: 1 }),
-          }} ref={previewRef}>
+          }} ref={previewRef} onScroll={onPreviewScroll}>
             <div className="md-preview" style={s.preview} dangerouslySetInnerHTML={{ __html: rendered }} />
           </div>
         )}

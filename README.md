@@ -1,17 +1,61 @@
 # MarkMoose Markdown Editor
 
-A desktop Markdown viewer and editor built with Electron + React. Supports `.md` file association on Windows so you can double-click any Markdown file to open it.
+A fast, beautiful desktop Markdown editor with live preview, tabs, dark mode, syntax highlighting, Mermaid diagrams, and more. Built with Electron + React.
+
+<a href="https://get.microsoft.com/installer/download/9njpg77756d4?referrer=appbadge" target="_self">
+	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
+</a>
 
 ## Features
 
-- **Live split-view editor** — Edit markdown on the left, see rendered output on the right
-- **Table of contents** — Auto-generated outline sidebar with click-to-scroll navigation
-- **File association** — After install, `.md` files open directly in the app
+- **Live split-view editor** — Edit on the left, see rendered output on the right with synchronized scrolling
+- **Draggable split divider** — Resize editor and preview to your preference
+- **Tabs** — Open multiple documents at once
+- **Table of contents** — Auto-generated outline sidebar with click-to-navigate
+- **Dark mode** — Easy on the eyes, with persistent preference
+- **Editor formatting toolbar** — Bold, italic, headings, links, code, lists, tables and more
+- **Syntax highlighting** — 180+ languages via highlight.js
+- **Mermaid diagrams** — Flowcharts, sequence diagrams, Gantt charts, and more
+- **GitHub-style alerts** — NOTE, TIP, IMPORTANT, WARNING, CAUTION
+- **Footnotes** — References with back-links
+- **YAML frontmatter** — Rendered as a styled metadata table
+- **LaTeX math** — Inline `$...$` and block `$$...$$` via KaTeX
+- **Save prompt** — Warns before closing unsaved work
 - **Drag & drop** — Drop `.md` files onto the window to open them
-- **Native file dialog** — Ctrl+O to open files via the OS file picker
-- **Single instance** — Opening a second `.md` file focuses the existing window
+- **File association** — After install, `.md` files open directly in MarkMoose
+- **Word and line count**
 
-## Getting Started
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+S | Save file |
+| Ctrl+O | Open file |
+| Ctrl+N | New window |
+| Ctrl+B | Bold selection |
+| Ctrl+I | Italic selection |
+| Ctrl+K | Insert link |
+
+## Screenshots
+
+| Light Mode | Dark Mode |
+|------------|-----------|
+| ![Light mode split view](screenshots/light.png) | ![Dark mode preview](screenshots/dark.png) |
+
+## Install
+
+### Microsoft Store
+
+<a href="https://get.microsoft.com/installer/download/9njpg77756d4?referrer=appbadge" target="_self">
+	<img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200"/>
+</a>
+
+### Direct Download
+
+- **[NSIS Installer](https://github.com/MortenRa/MarkMoose/releases)** — Full install with Start Menu, Desktop shortcut, and `.md` file associations
+- **[Portable](https://github.com/MortenRa/MarkMoose/releases)** — Single .exe, no install needed
+
+## Development
 
 ### Prerequisites
 
@@ -21,73 +65,63 @@ A desktop Markdown viewer and editor built with Electron + React. Supports `.md`
 ### Setup
 
 ```bash
-git clone <repo-url>
-cd markmoose
+git clone https://github.com/MortenRa/MarkMoose.git
+cd MarkMoose
 npm install
 ```
 
-### Development
+### Run
+
+Start Vite and Electron in separate terminals:
 
 ```bash
-npm run dev
+npx vite
 ```
 
-This starts Vite dev server + Electron concurrently with hot reload.
-
-### Build for Windows
-
-**Installer (.exe with NSIS):**
 ```bash
+npx electron .
+```
+
+### Build
+
+```bash
+# NSIS installer
 npm run build:win
-```
 
-**Portable (single .exe, no install needed):**
-```bash
+# Portable executable
 npm run build:portable
+
+# Microsoft Store (AppX)
+npm run build:appx
 ```
 
 Built files appear in the `release/` directory.
 
-## File Association
-
-The NSIS installer automatically registers `.md` and `.markdown` file associations. After installing:
-
-1. Right-click any `.md` file in Explorer
-2. Choose **Open with → MarkMoose**
-3. Optionally check "Always use this app" to make it the default
-
-## App Icons
-
-Place your icons in `build-resources/`:
-
-- `icon.ico` — App icon (256×256 recommended)
-- `md-icon.ico` — File type icon for `.md` files
-
-If you don't have icons yet, the build will still work but use the default Electron icon.
-
 ## Project Structure
 
 ```
-markmoose/
+MarkMoose/
 ├── src/
 │   ├── main.js              # Electron main process
 │   ├── preload.js            # Secure IPC bridge
 │   ├── renderer.jsx          # React entry point
-│   └── MarkdownViewer.jsx    # Main React component
-├── build-resources/          # Icons for the installer
+│   ├── MarkdownViewer.jsx    # Main React component
+│   └── splash.html           # Splash screen
+├── build-resources/          # App icons
 ├── index.html                # Vite entry HTML
 ├── vite.config.js            # Vite configuration
 ├── package.json              # Dependencies + electron-builder config
 └── README.md
 ```
 
-## Distribution
+## Privacy Policy
 
-After building, share the installer from `release/`:
-
-- **NSIS installer** — `MarkMoose Setup X.X.X.exe` — full install with Start Menu, Desktop shortcut, file associations
-- **Portable** — `MarkMoose-Portable.exe` — single file, no install needed (no file association)
+MarkMoose does not collect, store, transmit, or share any personal data or usage information. The application runs entirely offline on your device. No files are uploaded to any server. No third-party services, analytics, or advertising are used.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
+
+## Author
+
+Morten Rasmussen

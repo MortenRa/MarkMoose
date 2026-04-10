@@ -1,6 +1,6 @@
 {
   "name": "markmoose",
-  "version": "1.2.0",
+  "version": "1.2.3",
   "description": "MarkMoose — A desktop Markdown viewer and editor",
   "main": "src/main.js",
   "author": "Morten Rasmussen",
@@ -22,7 +22,8 @@
       "src/main.js",
       "src/preload.js",
       "src/splash.html",
-      "dist/**/*"
+      "dist/**/*",
+      "!node_modules"
     ],
     "extraResources": [
       {
@@ -65,6 +66,8 @@
     "portable": {
       "artifactName": "MarkMoose-Portable.exe"
     },
+    "asarUnpack": [],
+    "electronLanguages": ["en-US"],
     "appx": {
       "identityName": "MortenRasmussen.MarkMoose",
       "publisher": "CN=BFCE2BEF-1A0C-48E0-8EB6-E00EF06863D8",
