@@ -173,7 +173,7 @@ function createWindow() {
         sendFileToRenderer(fileToOpen);
         fileToOpen = null;
       }
-    }, 2000);
+    }, 1000);
   });
 
   // Prompt to save on close

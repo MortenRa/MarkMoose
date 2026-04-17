@@ -10,6 +10,8 @@
     "build:renderer": "vite build",
     "build:win": "npm run build:renderer && electron-builder --win",
     "build:portable": "npm run build:renderer && electron-builder --win portable",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build:appx": "npm run build:renderer && electron-builder --win appx"
   },
   "build": {
@@ -35,7 +37,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build-resources/icon.ico",
@@ -67,7 +71,9 @@
       "artifactName": "MarkMoose-Portable.exe"
     },
     "asarUnpack": [],
-    "electronLanguages": ["en-US"],
+    "electronLanguages": [
+      "en-US"
+    ],
     "afterPack": "./scripts/afterPack.js",
     "appx": {
       "identityName": "MortenRasmussen.MarkMoose",
@@ -76,7 +82,9 @@
       "displayName": "MarkMoose Markdown Editor",
       "applicationId": "MarkMoose",
       "backgroundColor": "#fafaf8",
-      "languages": ["en-US"]
+      "languages": [
+        "en-US"
+      ]
     }
   },
   "devDependencies": {
@@ -85,6 +93,7 @@
     "electron": "^33.4.11",
     "electron-builder": "^25.0.5",
     "vite": "^5.4.3",
+    "vitest": "^4.1.4",
     "wait-on": "^7.2.0"
   },
   "dependencies": {

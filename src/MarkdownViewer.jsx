@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import hljs from "highlight.js";
 import mermaid from "mermaid";
-import katex from "katex";
 import "katex/dist/katex.min.css";
+import { parseMd, extractHeadings } from "./parser.js";
 
 const APP_VERSION = "1.2.0";
 
-mermaid.initialize({ startOnLoad: false, theme: "default" });
+mermaid.initialize({ startOnLoad: false, theme: "default", flowchart: { useMaxWidth: false, padding: 20, nodeSpacing: 50, rankSpacing: 50 } });
 
 /* ── theme colors ────────────────────────────────────────────────── */
 const light = {
@@ -46,171 +45,6 @@ const dark = {
   alertWarning: { border: "#F18A00", bg: "#2a2010", title: "#F18A00" },
   alertCaution: { border: "#f87171", bg: "#2a1a1a", title: "#f87171" },
 };
-
-/* ── GFM alert icons ─────────────────────────────────────────────── */
-const alertIcons = {
-  NOTE: "&#8505;&#65039;",
-  TIP: "&#128161;",
-  IMPORTANT: "&#10071;",
-  WARNING: "&#9888;&#65039;",
-  CAUTION: "&#128680;",
-};
-
-/* ── markdown parser with GFM support ────────────────────────────── */
-function parseMd(md) {
-  let html = md;
-
-  // frontmatter — extract YAML between --- at the very start
-  let frontmatter = null;
-  html = html.replace(/^---\n([\s\S]*?)\n---\n?/, (_, yaml) => {
-    const entries = [];
-    yaml.split("\n").forEach(line => {
-      const m = line.match(/^(\w[\w\s-]*):\s*(.+)/);
-      if (m) entries.push([m[1].trim(), m[2].trim()]);
-    });
-    if (entries.length > 0) frontmatter = entries;
-    return "";
-  });
-
-  const footnotes = {};
-  html = html.replace(/^\[\^(\w+)\]:\s+(.+)$/gm, (_, id, content) => {
-    footnotes[id] = content;
-    return "";
-  });
-
-  // LaTeX block math $$...$$ (before code blocks)
-  html = html.replace(/\$\$([\s\S]*?)\$\$/g, (_, tex) => {
-    try {
-      return `<div class="md-math-block">${katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })}</div>`;
-    } catch { return `<div class="md-math-block md-math-error">${tex}</div>`; }
-  });
-
-  // LaTeX inline math $...$ (not preceded by \ or $, not greedy across lines)
-  html = html.replace(/(?<![\\$])\$([^\n$]+?)\$/g, (_, tex) => {
-    try {
-      return `<span class="md-math-inline">${katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })}</span>`;
-    } catch { return `<span class="md-math-inline md-math-error">${tex}</span>`; }
-  });
-
-  html = html.replace(/```mermaid\n([\s\S]*?)```/g, (_, code) => {
-    const encoded = encodeURIComponent(code.trim());
-    return `<div class="mermaid-block" data-chart="${encoded}"></div>`;
-  });
-
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const trimmed = code.trimEnd();
-    let highlighted;
-    if (lang && hljs.getLanguage(lang)) {
-      highlighted = hljs.highlight(trimmed, { language: lang }).value;
-    } else if (lang) {
-      try { highlighted = hljs.highlightAuto(trimmed).value; }
-      catch { highlighted = trimmed.replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-    } else {
-      highlighted = trimmed.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-    return `<pre class="code-block" data-lang="${lang}"><code class="hljs">${highlighted}</code></pre>`;
-  });
-
-  // inline code — escape HTML inside backticks
-  html = html.replace(/`([^`]+)`/g, (_, code) => {
-    const escaped = code.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return `<code class="inline-code">${escaped}</code>`;
-  });
-
-  // escape raw <tag> in text that aren't inside code blocks (already handled above)
-  // this prevents user-typed XML tags like <summary> from being eaten by the browser
-  html = html.replace(/<(?!\/?(?:code|pre|div|span|a|img|ul|ol|li|table|thead|tbody|tr|th|td|hr|h[1-6]|blockquote|section|sup|em|strong|del|br|p|b|i|s)\b)([^>]+)>/g, "&lt;$1&gt;");
-
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%;border-radius:6px;margin:12px 0" />');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
-
-  const makeHeading = (tag, text) => {
-    const cleanId = text.replace(/<[^>]+>/g, "").replace(/&[^;]+;/g, "").replace(/[^\w\s-]/g, "").trim();
-    return `<${tag} id="${cleanId}">${text}</${tag}>`;
-  };
-  html = html.replace(/^######\s+(.+)$/gm, (_, t) => makeHeading("h6", t));
-  html = html.replace(/^#####\s+(.+)$/gm, (_, t) => makeHeading("h5", t));
-  html = html.replace(/^####\s+(.+)$/gm, (_, t) => makeHeading("h4", t));
-  html = html.replace(/^###\s+(.+)$/gm, (_, t) => makeHeading("h3", t));
-  html = html.replace(/^##\s+(.+)$/gm, (_, t) => makeHeading("h2", t));
-  html = html.replace(/^#\s+(.+)$/gm, (_, t) => makeHeading("h1", t));
-
-  html = html.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '<hr class="md-hr" />');
-
-  html = html.replace(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n((?:>.*\n?)*)/gm, (_, type, body) => {
-    const content = body.replace(/^>\s?/gm, "").trim();
-    const icon = alertIcons[type] || "";
-    return `<div class="md-alert md-alert-${type.toLowerCase()}"><span class="md-alert-title">${icon} ${type}</span><p class="md-alert-body">${content}</p></div>`;
-  });
-
-  html = html.replace(/^>\s+(.+)$/gm, '<blockquote class="md-quote">$1</blockquote>');
-
-  html = html.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  html = html.replace(/~~(.+?)~~/g, "<del>$1</del>");
-
-  html = html.replace(/^(\s*)- \[x\]\s+(.+)$/gm, '$1<div class="task done">&#9745; $2</div>');
-  html = html.replace(/^(\s*)- \[ \]\s+(.+)$/gm, '$1<div class="task">&#9744; $2</div>');
-
-  html = html.replace(/^\s*[-*+]\s+(.+)$/gm, '<li class="md-li">$1</li>');
-  html = html.replace(/((?:<li class="md-li">.*<\/li>\n?)+)/g, '<ul class="md-ul">$1</ul>');
-
-  html = html.replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="md-oli">$1</li>');
-  html = html.replace(/((?:<li class="md-oli">.*<\/li>\n?)+)/g, '<ol class="md-ol">$1</ol>');
-
-  html = html.replace(/^(\|.+\|)\n\|[-| :]+\|\n((?:\|.+\|\n?)*)/gm, (_, header, body) => {
-    const thCells = header.split("|").filter(c => c.trim()).map(c => `<th>${c.trim()}</th>`).join("");
-    const rows = body.trim().split("\n").map(row => {
-      const cells = row.split("|").filter(c => c.trim()).map(c => `<td>${c.trim()}</td>`).join("");
-      return `<tr>${cells}</tr>`;
-    }).join("");
-    return `<table class="md-table"><thead><tr>${thCells}</tr></thead><tbody>${rows}</tbody></table>`;
-  });
-
-  html = html.replace(/\[\^(\w+)\]/g, (_, id) => {
-    if (footnotes[id]) return `<sup class="md-fnref"><a href="#fn-${id}" id="fnref-${id}">[${id}]</a></sup>`;
-    return `[^${id}]`;
-  });
-
-  html = html.split("\n").map(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return "";
-    if (/^<(h[1-6]|ul|ol|li|pre|blockquote|hr|div|table|thead|tbody|tr|th|td|img|section|sup)/.test(trimmed)) return line;
-    return `<p>${trimmed}</p>`;
-  }).join("\n");
-
-  const fnIds = Object.keys(footnotes);
-  if (fnIds.length > 0) {
-    html += '\n<hr class="md-hr" />\n<section class="md-footnotes"><ol class="md-ol">';
-    fnIds.forEach(id => {
-      html += `<li id="fn-${id}" class="md-oli">${footnotes[id]} <a href="#fnref-${id}" class="md-link">&#8617;</a></li>`;
-    });
-    html += "</ol></section>";
-  }
-
-  // prepend frontmatter table if present
-  if (frontmatter) {
-    const rows = frontmatter.map(([k, v]) => `<tr><td><strong>${k}</strong></td><td>${v}</td></tr>`).join("");
-    html = `<div class="md-frontmatter"><table class="md-table"><tbody>${rows}</tbody></table></div>` + html;
-  }
-
-  return html;
-}
-
-/* ── extract headings for TOC ─────────────────────────────────────── */
-function extractHeadings(md) {
-  const headings = [];
-  const lines = md.split("\n");
-  let inCode = false;
-  for (const line of lines) {
-    if (line.trim().startsWith("```")) { inCode = !inCode; continue; }
-    if (inCode) continue;
-    const m = line.match(/^(#{1,6})\s+(.+)$/);
-    if (m) headings.push({ level: m[1].length, text: m[2] });
-  }
-  return headings;
-}
 
 /* ── sample markdown ──────────────────────────────────────────────── */
 const SAMPLE = `---
@@ -349,6 +183,10 @@ export default function MarkdownViewer() {
   const [isDark, setIsDark] = useState(() => localStorage.getItem("markmoose-dark") === "true");
   const [showAbout, setShowAbout] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showFind, setShowFind] = useState(false);
+  const [findText, setFindText] = useState("");
+  const [findIndex, setFindIndex] = useState(0);
+  const findRef = useRef(null);
   const [appVersion, setAppVersion] = useState(APP_VERSION);
   const [splitPos, setSplitPos] = useState(50); // percentage
   const previewRef = useRef(null);
@@ -365,19 +203,55 @@ export default function MarkdownViewer() {
 
   // active tab helpers
   const tab = tabs.find(t => t.id === activeTabId) || tabs[0];
-  const md = tab.md;
-  const setMd = (val) => setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, md: val } : t));
-  const setDirty = (val) => setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, dirty: val } : t));
-  const setFileName = (val) => setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, fileName: val } : t));
-  const setFilePath = (val) => setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, filePath: val } : t));
+  const [md, setMdState] = useState(tab.md);
+  const mdTimerRef = useRef(null);
 
-  const headings = extractHeadings(md);
+  // sync editor content to tab state (debounced)
+  const setMd = useCallback((val) => {
+    setMdState(val);
+    if (mdTimerRef.current) clearTimeout(mdTimerRef.current);
+    mdTimerRef.current = setTimeout(() => {
+      setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, md: val } : t));
+    }, 500);
+  }, [activeTabId]);
+
+  // sync from tabs when switching tabs or opening files
+  const prevTabId = useRef(activeTabId);
+  useEffect(() => {
+    if (activeTabId !== prevTabId.current) {
+      prevTabId.current = activeTabId;
+      setMdState(tab.md);
+      if (editorRef.current) editorRef.current.value = tab.md;
+    }
+  }, [activeTabId, tab.md]);
+
+  // also sync when tab content changes externally (file opened)
+  const prevTabMd = useRef(tab.md);
+  useEffect(() => {
+    if (tab.md !== prevTabMd.current && tab.md !== md) {
+      prevTabMd.current = tab.md;
+      setMdState(tab.md);
+      if (editorRef.current) editorRef.current.value = tab.md;
+    }
+  }, [tab.md]);
+
+  const setDirty = useCallback((val) => {
+    setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, dirty: val } : t));
+  }, [activeTabId]);
+  const setFileName = useCallback((val) => {
+    setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, fileName: val } : t));
+  }, [activeTabId]);
+  const setFilePath = useCallback((val) => {
+    setTabs(ts => ts.map(t => t.id === activeTabId ? { ...t, filePath: val } : t));
+  }, [activeTabId]);
+
+  const headings = useMemo(() => extractHeadings(md), [md]);
   const rendered = useMemo(() => parseMd(md), [md]);
 
   // persist dark mode
   useEffect(() => {
     localStorage.setItem("markmoose-dark", isDark);
-    mermaid.initialize({ startOnLoad: false, theme: isDark ? "dark" : "default" });
+    mermaid.initialize({ startOnLoad: false, theme: isDark ? "dark" : "default", flowchart: { useMaxWidth: false, padding: 20, nodeSpacing: 50, rankSpacing: 50 } });
   }, [isDark]);
 
   // get version from Electron
@@ -560,52 +434,61 @@ export default function MarkdownViewer() {
   const wrapSelection = useCallback((before, after) => {
     const ta = editorRef.current;
     if (!ta) return;
+    const val = ta.value;
     const start = ta.selectionStart;
     const end = ta.selectionEnd;
-    const selected = md.substring(start, end);
-    const newText = md.substring(0, start) + before + selected + after + md.substring(end);
+    const newText = val.substring(0, start) + before + val.substring(start, end) + after + val.substring(end);
+    ta.value = newText;
     setMd(newText);
     setDirty(true);
-    setTimeout(() => {
-      ta.focus();
-      ta.selectionStart = start + before.length;
-      ta.selectionEnd = end + before.length;
-    }, 0);
-  }, [md]);
+    ta.focus();
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = end + before.length;
+  }, []);
 
   const insertAtLineStart = useCallback((prefix) => {
     const ta = editorRef.current;
     if (!ta) return;
+    const val = ta.value;
     const start = ta.selectionStart;
-    const lineStart = md.lastIndexOf("\n", start - 1) + 1;
-    const newText = md.substring(0, lineStart) + prefix + md.substring(lineStart);
+    const lineStart = val.lastIndexOf("\n", start - 1) + 1;
+    const newText = val.substring(0, lineStart) + prefix + val.substring(lineStart);
+    ta.value = newText;
     setMd(newText);
     setDirty(true);
-    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = start + prefix.length; }, 0);
-  }, [md]);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = start + prefix.length;
+  }, []);
 
   const insertText = useCallback((text) => {
     const ta = editorRef.current;
     if (!ta) return;
+    const val = ta.value;
     const start = ta.selectionStart;
-    const newText = md.substring(0, start) + text + md.substring(start);
+    const newText = val.substring(0, start) + text + val.substring(start);
+    ta.value = newText;
     setMd(newText);
     setDirty(true);
-    setTimeout(() => { ta.focus(); ta.selectionStart = ta.selectionEnd = start + text.length; }, 0);
-  }, [md]);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = start + text.length;
+  }, []);
 
   const insertLink = useCallback(() => {
     const ta = editorRef.current;
     if (!ta) return;
+    const val = ta.value;
     const start = ta.selectionStart;
     const end = ta.selectionEnd;
-    const selected = md.substring(start, end) || "text";
-    const newText = md.substring(0, start) + `[${selected}](url)` + md.substring(end);
+    const selected = val.substring(start, end) || "text";
+    const newText = val.substring(0, start) + `[${selected}](url)` + val.substring(end);
+    ta.value = newText;
     setMd(newText);
     setDirty(true);
     const urlStart = start + selected.length + 3;
-    setTimeout(() => { ta.focus(); ta.selectionStart = urlStart; ta.selectionEnd = urlStart + 3; }, 0);
-  }, [md]);
+    ta.focus();
+    ta.selectionStart = urlStart;
+    ta.selectionEnd = urlStart + 3;
+  }, []);
 
   const handleFmtAction = useCallback((action) => {
     switch (action) {
@@ -654,19 +537,119 @@ export default function MarkdownViewer() {
   useEffect(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        e.preventDefault();
+        setShowFind(prev => {
+          if (!prev) setTimeout(() => findRef.current?.focus(), 50);
+          return !prev;
+        });
+      }
+      if (e.key === "Escape" && showFind) { setShowFind(false); setFindText(""); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSave]);
+  }, [handleSave, showFind]);
 
   const handleChange = useCallback((e) => {
     setMd(e.target.value);
     setDirty(true);
   }, []);
 
-  // synchronized scrolling between editor and preview
+  // find matches
+  const findMatches = useMemo(() => {
+    if (!findText || findText.length < 2) return [];
+    const matches = [];
+    const lower = md.toLowerCase();
+    const search = findText.toLowerCase();
+    let pos = 0;
+    while ((pos = lower.indexOf(search, pos)) !== -1) {
+      matches.push(pos);
+      pos += 1;
+    }
+    return matches;
+  }, [md, findText]);
+
+  const jumpToMatch = useCallback((idx) => {
+    if (findMatches.length === 0) return;
+    const matchIdx = ((idx % findMatches.length) + findMatches.length) % findMatches.length;
+    setFindIndex(matchIdx);
+    const pos = findMatches[matchIdx];
+
+    // jump in editor if visible
+    const ta = editorRef.current;
+    if (ta && (mode === "edit" || mode === "split")) {
+      ta.focus();
+      ta.selectionStart = pos;
+      ta.selectionEnd = pos + findText.length;
+      // calculate scroll position based on character position
+      const textBefore = md.substring(0, pos);
+      const lineNum = textBefore.split("\n").length;
+      const lineHeight = 14 * 1.7; // fontSize * lineHeight
+      ta.scrollTop = Math.max(0, (lineNum - 5) * lineHeight);
+    }
+
+    // highlight in preview if visible
+    if (previewRef.current && (mode === "preview" || mode === "split")) {
+      // clear previous highlights
+      previewRef.current.querySelectorAll(".find-highlight").forEach(el => {
+        el.outerHTML = el.textContent;
+      });
+      // find text nodes in preview and highlight
+      const searchLower = findText.toLowerCase();
+      const walker = document.createTreeWalker(previewRef.current, NodeFilter.SHOW_TEXT);
+      const textNodes = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.textContent.toLowerCase().includes(searchLower)) {
+          textNodes.push(node);
+        }
+      }
+      let matchCount = 0;
+      for (const tn of textNodes) {
+        const parts = tn.textContent.split(new RegExp(`(${findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi"));
+        if (parts.length <= 1) continue;
+        const frag = document.createDocumentFragment();
+        parts.forEach(part => {
+          if (part.toLowerCase() === searchLower) {
+            const mark = document.createElement("mark");
+            mark.className = "find-highlight";
+            mark.style.background = matchCount === matchIdx ? "#F18A00" : "#F7AF0F66";
+            mark.style.color = matchCount === matchIdx ? "#fff" : "inherit";
+            mark.style.borderRadius = "2px";
+            mark.style.padding = "0 1px";
+            mark.textContent = part;
+            if (matchCount === matchIdx) {
+              setTimeout(() => mark.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+            }
+            matchCount++;
+            frag.appendChild(mark);
+          } else {
+            frag.appendChild(document.createTextNode(part));
+          }
+        });
+        tn.parentNode.replaceChild(frag, tn);
+      }
+    }
+  }, [findMatches, findText, md, mode]);
+
+  // clear find highlights when closing or changing search
+  useEffect(() => {
+    if (!showFind && previewRef.current) {
+      previewRef.current.querySelectorAll(".find-highlight").forEach(el => {
+        el.outerHTML = el.textContent;
+      });
+    }
+  }, [showFind]);
+
+  // synchronized scrolling — only when user actively scrolls the source pane
+  const activeScrollSource = useRef(null);
+
+  const onEditorMouseEnter = useCallback(() => { activeScrollSource.current = "editor"; }, []);
+  const onPreviewMouseEnter = useCallback(() => { activeScrollSource.current = "preview"; }, []);
+
   const onEditorScroll = useCallback(() => {
     if (syncingScroll.current || mode !== "split") return;
+    if (activeScrollSource.current !== "editor") return;
     const editor = editorRef.current;
     const preview = previewRef.current;
     if (!editor || !preview) return;
@@ -678,6 +661,7 @@ export default function MarkdownViewer() {
 
   const onPreviewScroll = useCallback(() => {
     if (syncingScroll.current || mode !== "split") return;
+    if (activeScrollSource.current !== "preview") return;
     const editor = editorRef.current;
     const preview = previewRef.current;
     if (!editor || !preview) return;
@@ -773,7 +757,8 @@ export default function MarkdownViewer() {
                 {[
                   ["Ctrl+S", "Save file"], ["Ctrl+O", "Open file"], ["Ctrl+N", "New window"],
                   ["Ctrl+B", "Bold selection"], ["Ctrl+I", "Italic selection"], ["Ctrl+K", "Insert link"],
-                  ["Ctrl+P", "Print"], ["Ctrl++", "Zoom in"], ["Ctrl+-", "Zoom out"], ["Ctrl+0", "Reset zoom"], ["F11", "Fullscreen"],
+                  ["Ctrl+F", "Find in document"],
+                  ["Ctrl+P", "Export to PDF"], ["Ctrl++", "Zoom in"], ["Ctrl+-", "Zoom out"], ["Ctrl+0", "Reset zoom"], ["F11", "Fullscreen"],
                 ].map(([key, desc]) => (
                   <div key={key} style={s.helpRow}>
                     <kbd style={s.kbd}>{key}</kbd>
@@ -861,6 +846,30 @@ export default function MarkdownViewer() {
         </div>
       </div>
 
+      {/* find bar */}
+      {showFind && (
+        <div className="no-print" style={s.findBar}>
+          <input
+            ref={findRef}
+            type="text"
+            value={findText}
+            onChange={e => { setFindText(e.target.value); setFindIndex(0); }}
+            onKeyDown={e => {
+              if (e.key === "Enter") { e.preventDefault(); jumpToMatch(e.shiftKey ? findIndex - 1 : findIndex + 1); }
+              if (e.key === "Escape") { setShowFind(false); setFindText(""); }
+            }}
+            placeholder="Find in document..."
+            style={s.findInput}
+          />
+          <span style={s.findCount}>
+            {findText.length >= 2 ? `${findMatches.length > 0 ? findIndex + 1 : 0} / ${findMatches.length}` : ""}
+          </span>
+          <button style={s.findBtn} onClick={() => jumpToMatch(findIndex - 1)} title="Previous (Shift+Enter)">&#9650;</button>
+          <button style={s.findBtn} onClick={() => jumpToMatch(findIndex + 1)} title="Next (Enter)">&#9660;</button>
+          <button style={s.findBtn} onClick={() => { setShowFind(false); setFindText(""); }} title="Close (Esc)">&times;</button>
+        </div>
+      )}
+
       {/* tab bar */}
       <div className="no-print" style={s.tabBar}>
         {tabs.map(t => (
@@ -924,10 +933,12 @@ export default function MarkdownViewer() {
             </div>
             <textarea
               ref={editorRef}
-              value={md}
-              onChange={handleChange}
+              defaultValue={md}
+              onInput={handleChange}
               onKeyDown={handleEditorKeyDown}
               onScroll={onEditorScroll}
+              onMouseEnter={onEditorMouseEnter}
+              onWheel={onEditorMouseEnter}
               style={s.editor}
               spellCheck={false}
               placeholder="Type or paste markdown here..."
@@ -945,7 +956,7 @@ export default function MarkdownViewer() {
           <div style={{
             overflow: "auto", minWidth: 0, cursor: "default",
             ...(mode === "split" ? { width: `${100 - splitPos}%` } : { flex: 1 }),
-          }} className="print-only" ref={previewRef} onScroll={onPreviewScroll}>
+          }} className="print-only" ref={previewRef} onScroll={onPreviewScroll} onMouseEnter={onPreviewMouseEnter} onWheel={onPreviewMouseEnter}>
             <div className="md-preview" style={s.preview} dangerouslySetInnerHTML={{ __html: rendered }} />
           </div>
         )}
@@ -1043,8 +1054,10 @@ function getCssText(t) {
   .md-preview .md-math-inline { display: inline; }
   .md-preview .md-math-error { color: ${t.alertCaution.title}; font-family: 'IBM Plex Mono', monospace; font-size: 0.85em; }
 
-  .md-preview .mermaid-block { margin: 14px 0; padding: 16px; background: ${t.surface}; border-radius: 8px; border: 1px solid ${t.border}; text-align: center; }
-  .md-preview .mermaid-block svg { max-width: 100%; height: auto; }
+  .md-preview .mermaid-block { margin: 14px 0; padding: 16px 32px; background: ${t.surface}; border-radius: 8px; border: 1px solid ${t.border}; text-align: center; overflow-x: auto; }
+  .md-preview .mermaid-block svg { height: auto; padding: 8px 16px; }
+  .md-preview .mermaid-block .node foreignObject { overflow: visible; }
+  .md-preview .mermaid-block .nodeLabel { overflow: visible; white-space: nowrap; }
   .md-preview .mermaid-error { color: ${t.alertCaution.title}; font-size: 0.85em; padding: 8px; font-family: 'IBM Plex Mono', monospace; }
 
   .hljs { color: #d4d4d4; }
@@ -1128,6 +1141,22 @@ function getStyles(t) {
       display: "flex", flexDirection: "column", alignItems: "center",
       boxShadow: "0 16px 48px rgba(0,0,0,0.2)", border: `1px solid ${t.border}`,
       minWidth: 280,
+    },
+    findBar: {
+      display: "flex", alignItems: "center", gap: 6, padding: "4px 16px",
+      background: t.surfaceAlt, borderBottom: `1px solid ${t.border}`,
+      minHeight: 36,
+    },
+    findInput: {
+      flex: 1, maxWidth: 300, padding: "4px 10px", fontSize: 13,
+      border: `1px solid ${t.border}`, borderRadius: 4,
+      background: t.bg, color: t.text, outline: "none",
+      fontFamily: "'DM Sans', sans-serif",
+    },
+    findCount: { fontSize: 12, color: t.textTer, minWidth: 50, fontFamily: "'IBM Plex Mono', monospace" },
+    findBtn: {
+      background: "none", border: "none", cursor: "pointer", padding: "2px 6px",
+      fontSize: 14, color: t.textSec, borderRadius: 4, lineHeight: 1,
     },
     aboutCloseBtn: {
       background: t.accent, color: "#fff", border: "none", borderRadius: 8,
@@ -1241,7 +1270,7 @@ function getStyles(t) {
       color: t.accent, minWidth: 18,
     },
     tocText: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-    pane: { flex: 1, overflow: "auto", minWidth: 0, display: "flex", flexDirection: "column" },
+    pane: { flex: 1, overflow: "hidden", minWidth: 0, display: "flex", flexDirection: "column" },
     // formatting bar
     fmtBar: {
       display: "flex", alignItems: "center", gap: 2, padding: "4px 8px",
@@ -1262,6 +1291,7 @@ function getStyles(t) {
       padding: "16px 28px", fontSize: 14, lineHeight: 1.7,
       fontFamily: "'IBM Plex Mono', monospace", color: t.text,
       background: t.bg, cursor: "text",
+      minHeight: 0, overflow: "auto",
     },
     splitHandle: {
       width: 6, cursor: "col-resize", background: t.border,
