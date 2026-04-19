@@ -7,3 +7,4 @@ build/appx/
 Thumbs.db
 .claude/
 .vscode/
+*.vsix

@@ -1,0 +1,70 @@
+{
+  "name": "markmoose-markdown-editor",
+  "displayName": "MarkMoose Markdown Editor",
+  "description": "Full-featured Markdown editor with live preview, Mermaid diagrams, LaTeX math, GFM alerts, frontmatter, dark mode, TOC, and formatting toolbar",
+  "version": "1.0.1",
+  "publisher": "MortenRasmussen",
+  "author": "Morten Rasmussen",
+  "license": "MIT",
+  "icon": "media/icon-128x128.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MortenRa/MarkMoose"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "editor",
+    "preview",
+    "mermaid",
+    "katex",
+    "latex",
+    "math",
+    "gfm",
+    "frontmatter",
+    "dark mode"
+  ],
+  "activationEvents": [],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "markmoose.openEditor",
+        "title": "MarkMoose: Open Markdown Editor",
+        "icon": {
+          "light": "media/icon.png",
+          "dark": "media/icon.png"
+        }
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "markmoose.openEditor",
+          "when": "resourceLangId == markdown",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "markmoose.openEditor",
+          "when": "resourceLangId == markdown",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "esbuild": "^0.28.0",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.45"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.3.2"
+  }
+}
