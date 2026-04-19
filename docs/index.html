@@ -575,6 +575,127 @@
     color: var(--accent);
   }
 
+  /* --- VSCODE SECTION --- */
+  .vscode-section {
+    padding: 120px 48px;
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .vscode-section h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(36px, 5vw, 56px);
+    letter-spacing: -1.5px;
+    margin-bottom: 16px;
+  }
+
+  .vscode-section h2 em { font-style: italic; color: var(--accent); }
+
+  .vscode-section > p {
+    color: var(--text-dim);
+    font-size: 17px;
+    max-width: 520px;
+    margin-inline: auto;
+    line-height: 1.6;
+    margin-bottom: 48px;
+  }
+
+  .vscode-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    text-align: left;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 48px;
+    margin-bottom: 40px;
+  }
+
+  .vscode-card-text h3 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.3px;
+  }
+
+  .vscode-card-text p {
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.65;
+    margin-bottom: 16px;
+  }
+
+  .vscode-features-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 24px;
+  }
+
+  .vscode-features-list li {
+    font-size: 14px;
+    color: var(--text-dim);
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .vscode-features-list li::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .btn-vscode {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: #007ACC;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .btn-vscode:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 122, 204, 0.3);
+  }
+
+  .vscode-visual {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+
+  .vscode-visual .cmd {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .vscode-visual .comment {
+    color: #6a9955;
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    .vscode-section { padding: 80px 24px; }
+    .vscode-card { grid-template-columns: 1fr; padding: 32px; }
+  }
+
   /* --- CTA --- */
   .cta {
     text-align: center;
@@ -708,6 +829,7 @@
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
     <li><a href="#showcase">Why MarkMoose</a></li>
+    <li><a href="#vscode">VS Code</a></li>
     <li><a href="https://github.com/MortenRa/MarkMoose" target="_blank">GitHub</a></li>
   </ul>
   <a href="https://apps.microsoft.com/detail/9njpg77756d4" target="_blank" class="btn-download">
@@ -863,6 +985,41 @@
     <div class="showcase-text">
       <h3>Keyboard-first,<br>always</h3>
       <p>Every action has a shortcut. MarkMoose stays out of your way and lets your fingers do the thinking. Built for people who type faster than they click.</p>
+    </div>
+  </div>
+</section>
+
+<!-- VS CODE EXTENSION -->
+<section class="vscode-section" id="vscode">
+  <h2>Also in <em>VS Code</em></h2>
+  <p>Love MarkMoose? Get the same beautiful Markdown editing experience right inside Visual Studio Code.</p>
+
+  <div class="vscode-card">
+    <div class="vscode-card-text">
+      <h3>MarkMoose for VS Code</h3>
+      <p>The full MarkMoose editor as a VS Code extension. Open any Markdown file with MarkMoose styling, formatting toolbar, and all the features you love.</p>
+      <ul class="vscode-features-list">
+        <li>Live split-view editor with draggable divider</li>
+        <li>Mermaid diagrams, LaTeX math, GFM alerts</li>
+        <li>YAML frontmatter rendering</li>
+        <li>Syntax highlighting for 180+ languages</li>
+        <li>Table of contents sidebar</li>
+        <li>Dark mode with MarkMoose colors</li>
+        <li>Formatting toolbar and keyboard shortcuts</li>
+      </ul>
+      <a href="https://marketplace.visualstudio.com/items?itemName=MortenRasmussen.markmoose-markdown-editor" target="_blank" class="btn-vscode">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M14.5 1L5.6 9.5 2.2 6.7.5 7.8l5.1 4.7L15.5 2.3z"/></svg>
+        Install from Marketplace
+      </a>
+    </div>
+    <div class="vscode-visual">
+      <span class="comment">// Install from VS Code</span><br>
+      <span class="cmd">Ctrl+Shift+P</span> → MarkMoose<br><br>
+      <span class="comment">// Or right-click any .md file</span><br>
+      → <span class="cmd">MarkMoose: Open Markdown Editor</span><br><br>
+      <span class="comment">// Or install from terminal</span><br>
+      <span class="cmd">code --install-extension</span><br>
+      &nbsp;&nbsp;MortenRasmussen.markmoose-markdown-editor
     </div>
   </div>
 </section>
