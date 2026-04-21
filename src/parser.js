@@ -11,7 +11,7 @@ const alertIcons = {
 };
 
 /* ── markdown parser with GFM support ────────────────────────────── */
-export function parseMd(md) {
+export function parseMd(md, baseDir = null) {
   // normalize line endings (Windows \r\n → \n)
   let html = md.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
@@ -75,7 +75,14 @@ export function parseMd(md) {
   // escape raw <tag> in text that aren't inside code blocks
   html = html.replace(/<(?!\/?(?:code|pre|div|span|a|img|ul|ol|li|table|thead|tbody|tr|th|td|hr|h[1-6]|blockquote|section|sup|em|strong|del|br|p|b|i|s)\b)([^>]+)>/g, "&lt;$1&gt;");
 
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%;border-radius:6px;margin:12px 0" />');
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+    let resolvedSrc = src;
+    if (baseDir && !/^(https?:|file:|data:)/.test(src) && !src.startsWith("/") && !/^[A-Za-z]:/.test(src)) {
+      const base = baseDir.startsWith("/") ? `file://${baseDir}` : `file:///${baseDir}`;
+      resolvedSrc = `${base}/${src}`;
+    }
+    return `<img alt="${alt}" src="${resolvedSrc}" style="max-width:100%;border-radius:6px;margin:12px 0" />`;
+  });
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="md-link">$1</a>');
 
   const makeHeading = (tag, text) => {
