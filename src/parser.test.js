@@ -83,6 +83,59 @@ describe("parseMd", () => {
       expect(result).toContain('alt="alt text"');
       expect(result).toContain("<img");
     });
+
+    describe("image base path resolution", () => {
+      it("resolves relative image path against Unix baseDir", () => {
+        const result = parseMd("![img](images/photo.png)", "/home/user/docs");
+        expect(result).toContain('src="file:///home/user/docs/images/photo.png"');
+      });
+
+      it("resolves relative image path against Windows baseDir", () => {
+        const result = parseMd("![img](images/photo.png)", "C:/Users/jeetl/Documents");
+        expect(result).toContain('src="file:///C:/Users/jeetl/Documents/images/photo.png"');
+      });
+
+      it("resolves ./ prefixed relative paths", () => {
+        const result = parseMd("![img](./assets/fig.svg)", "/home/user/docs");
+        expect(result).toContain('src="file:///home/user/docs/./assets/fig.svg"');
+      });
+
+      it("does not alter http URLs even with baseDir", () => {
+        const result = parseMd("![img](https://example.com/img.png)", "/home/user/docs");
+        expect(result).toContain('src="https://example.com/img.png"');
+      });
+
+      it("does not alter https URLs even with baseDir", () => {
+        const result = parseMd("![img](https://cdn.example.com/logo.png)", "C:/docs");
+        expect(result).toContain('src="https://cdn.example.com/logo.png"');
+      });
+
+      it("does not alter data: URIs even with baseDir", () => {
+        const dataUri = "data:image/png;base64,abc123";
+        const result = parseMd(`![img](${dataUri})`, "/home/user/docs");
+        expect(result).toContain(`src="${dataUri}"`);
+      });
+
+      it("does not alter file: URIs even with baseDir", () => {
+        const result = parseMd("![img](file:///absolute/path.png)", "/home/user/docs");
+        expect(result).toContain('src="file:///absolute/path.png"');
+      });
+
+      it("does not alter absolute Unix paths even with baseDir", () => {
+        const result = parseMd("![img](/absolute/path.png)", "/home/user/docs");
+        expect(result).toContain('src="/absolute/path.png"');
+      });
+
+      it("does not alter Windows absolute paths even with baseDir", () => {
+        const result = parseMd("![img](C:/images/photo.png)", "C:/docs");
+        expect(result).toContain('src="C:/images/photo.png"');
+      });
+
+      it("leaves relative src unchanged when no baseDir provided", () => {
+        const result = parseMd("![img](images/photo.png)");
+        expect(result).toContain('src="images/photo.png"');
+      });
+    });
   });
 
   describe("code blocks", () => {
