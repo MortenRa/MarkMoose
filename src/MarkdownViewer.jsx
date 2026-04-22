@@ -261,7 +261,8 @@ export default function MarkdownViewer() {
   }, [activeTabId]);
 
   const headings = useMemo(() => extractHeadings(md), [md]);
-  const rendered = useMemo(() => parseMd(md), [md]);
+  const baseDir = tab.filePath ? tab.filePath.replace(/\\/g, "/").replace(/\/[^/]*$/, "") : null;
+  const rendered = useMemo(() => parseMd(md, baseDir), [md, baseDir]);
 
   // persist dark mode
   useEffect(() => {
